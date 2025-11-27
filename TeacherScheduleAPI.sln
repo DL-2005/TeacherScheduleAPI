@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35327.3
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeacherScheduleAPI", "TeacherScheduleAPI.csproj", "{283D7037-737F-4BDA-A6F5-B8326B3033BC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{283D7037-737F-4BDA-A6F5-B8326B3033BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{283D7037-737F-4BDA-A6F5-B8326B3033BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{283D7037-737F-4BDA-A6F5-B8326B3033BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{283D7037-737F-4BDA-A6F5-B8326B3033BC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A203A146-F27C-4691-A672-2BD31EE1F8CF}
+	EndGlobalSection
+EndGlobal
