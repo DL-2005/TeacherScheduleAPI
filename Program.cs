@@ -1,19 +1,19 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TeacherScheduleAPI.Data;
-using Npgsql; // Thư viện PostgreSQL
+using Npgsql;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. CẤU HÌNH DATABASE THÔNG MINH (QUAN TRỌNG) ---
-// Kiểm tra xem có biến môi trường DATABASE_URL không (Do Render cung cấp)
+// --- 1. CẤU HÌNH DATABASE THÔNG MINH ---
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
 if (!string.IsNullOrEmpty(databaseUrl))
 {
-    // === TRƯỜNG HỢP 1: Đang chạy trên Render/Railway (Dùng PostgreSQL) ===
     Console.WriteLine("--> Đang chạy trên Cloud: Sử dụng PostgreSQL");
 
-    // Phân tích chuỗi kết nối của Render để nạp vào Npgsql
     var databaseUri = new Uri(databaseUrl);
     var userInfo = databaseUri.UserInfo.Split(':');
 
@@ -25,7 +25,7 @@ if (!string.IsNullOrEmpty(databaseUrl))
         Password = userInfo[1],
         Database = databaseUri.LocalPath.TrimStart('/'),
         SslMode = SslMode.Require,
-        TrustServerCertificate = true // Render dùng chứng chỉ tự ký nên cần dòng này
+        TrustServerCertificate = true
     };
 
     builder.Services.AddDbContext<AppDbContext>(options =>
@@ -33,7 +33,6 @@ if (!string.IsNullOrEmpty(databaseUrl))
 }
 else
 {
-    // === TRƯỜNG HỢP 2: Đang chạy trên máy cá nhân (Dùng SQL Server) ===
     Console.WriteLine("--> Đang chạy Local: Sử dụng SQL Server");
 
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -43,8 +42,33 @@ else
         options.UseSqlServer(connectionString));
 }
 
-// --- 2. CẤU HÌNH CORS (Kết nối Frontend) ---
-// Tạm thời cho phép tất cả (AllowAnyOrigin) để dễ test, sau này siết lại sau
+// --- 2. CẤU HÌNH JWT AUTHENTICATION ---
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "YourSuperSecretKeyMinimum32Characters!!";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "TeacherScheduleAPI";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "TeacherScheduleAPIUsers";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+    };
+});
+
+builder.Services.AddAuthorization();
+
+// --- 3. CẤU HÌNH CORS ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -55,30 +79,54 @@ builder.Services.AddCors(options =>
     });
 });
 
-// --- 3. CÁC DỊCH VỤ CƠ BẢN ---
+// --- 4. CÁC DỊCH VỤ CƠ BẢN ---
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    // Cấu hình Swagger để hỗ trợ JWT
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
-// --- 4. MIDDLEWARE ---
-
-// Cho phép Swagger hiện thị ngay cả trên Render (để giảng viên chấm bài dễ hơn)
+// --- 5. MIDDLEWARE ---
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
-// Kích hoạt CORS
 app.UseCors("AllowAll");
 
+// *** QUAN TRỌNG: Thứ tự phải đúng ***
+app.UseAuthentication(); // Phải đặt trước UseAuthorization
 app.UseAuthorization();
 
 app.MapControllers();
 
-// --- 5. TỰ ĐỘNG KHỞI TẠO DATABASE (AUTO MIGRATION) ---
-// Đoạn này giúp tạo bảng tự động khi deploy lên Render mà không cần gõ lệnh
+// --- 6. TỰ ĐỘNG MIGRATION ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -88,6 +136,7 @@ using (var scope = app.Services.CreateScope())
         // Lệnh này tương đương với 'Update-Database'
         context.Database.Migrate();
         Console.WriteLine("--> Đã cập nhật Database thành công!");
+        DbInitializer.Initialize(context);
     }
     catch (Exception ex)
     {

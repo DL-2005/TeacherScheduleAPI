@@ -11,15 +11,28 @@ namespace TeacherScheduleAPI.Models
         public string MaTK { get; set; }
 
         [Required]
-        public string MatKhau { get; set; } // Lưu ý: Thực tế nên mã hóa MD5/Bcrypt
+        public string MatKhau { get; set; }
 
+        [Required]
+        [StringLength(10)]
+        public string ChucVu { get; set; } // 'GV', 'CQC', 'TK', 'TBM'
+
+        // Nếu là Giảng viên hoặc Trưởng bộ môn
         [StringLength(10)]
         public string? MaGV { get; set; }
         [ForeignKey("MaGV")]
         public GiangVien? GiangVien { get; set; }
 
-        [Required]
-        [StringLength(3)]
-        public string ChucVu { get; set; } // 'GV' hoặc 'CQC'
+        // Nếu là Trưởng khoa
+        [StringLength(10)]
+        public string? MaKhoa { get; set; }
+        [ForeignKey("MaKhoa")]
+        public Khoa? Khoa { get; set; }
+
+        // Nếu là Trưởng bộ môn
+        [StringLength(10)]
+        public string? MaBM { get; set; }
+        [ForeignKey("MaBM")]
+        public BoMon? BoMon { get; set; }
     }
 }

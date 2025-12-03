@@ -19,12 +19,16 @@ namespace TeacherScheduleAPI.Models
         public string? SDT { get; set; }
         public string? Email { get; set; }
 
-        // --- BẠN ĐANG THIẾU ĐOẠN NÀY ---
+        // Khóa ngoại Khoa
         [StringLength(10)]
-        public string? MaKhoa { get; set; } // Khóa ngoại lưu mã
-
+        public string? MaKhoa { get; set; }
         [ForeignKey("MaKhoa")]
-        public Khoa? Khoa { get; set; } // Object để dùng lệnh .Include()
-        // --------------------------------
+        public Khoa? Khoa { get; set; }
+
+        // Khóa ngoại Bộ môn
+        [StringLength(10)]
+        public string? MaBM { get; set; }
+        [ForeignKey("MaBM")]
+        public BoMon? BoMon { get; set; }
     }
 }
