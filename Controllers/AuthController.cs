@@ -258,7 +258,7 @@ namespace TeacherScheduleAPI.Controllers
                 issuer: _configuration["Jwt:Issuer"] ?? "TeacherScheduleAPI",
                 audience: _configuration["Jwt:Audience"] ?? "TeacherScheduleAPIUsers",
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(8),
+                expires: DateTime.UtcNow.AddDays(7),
                 signingCredentials: credentials
             );
 
