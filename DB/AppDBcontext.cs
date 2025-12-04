@@ -7,7 +7,7 @@ namespace TeacherScheduleAPI.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-        // Khai báo các bảng
+        // ==================== CÁC BẢNG CŨ ====================
         public DbSet<Khoa> Khoas { get; set; }
         public DbSet<BoMon> BoMons { get; set; }
         public DbSet<GiangVien> GiangViens { get; set; }
@@ -16,11 +16,17 @@ namespace TeacherScheduleAPI.Data
         public DbSet<PhanCong> PhanCongs { get; set; }
         public DbSet<TaiKhoan> TaiKhoans { get; set; }
 
+        // ==================== CÁC BẢNG MỚI ====================
+        public DbSet<NghienCuuKhoaHoc> NghienCuuKhoaHocs { get; set; }
+        public DbSet<BoiDuong> BoiDuongs { get; set; }
+        public DbSet<NhiemVuKhac> NhiemVuKhacs { get; set; }
+        public DbSet<DinhMuc> DinhMucs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Cấu hình quan hệ TaiKhoan để tránh xung đột
+            // ==================== CẤU HÌNH TaiKhoan ====================
             modelBuilder.Entity<TaiKhoan>()
                 .HasOne(tk => tk.GiangVien)
                 .WithMany()
@@ -38,6 +44,27 @@ namespace TeacherScheduleAPI.Data
                 .WithMany()
                 .HasForeignKey(tk => tk.MaBM)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ==================== CẤU HÌNH NCKH ====================
+            modelBuilder.Entity<NghienCuuKhoaHoc>()
+                .HasOne(n => n.GiangVien)
+                .WithMany()
+                .HasForeignKey(n => n.MaGV)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ==================== CẤU HÌNH BoiDuong ====================
+            modelBuilder.Entity<BoiDuong>()
+                .HasOne(b => b.GiangVien)
+                .WithMany()
+                .HasForeignKey(b => b.MaGV)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ==================== CẤU HÌNH NhiemVuKhac ====================
+            modelBuilder.Entity<NhiemVuKhac>()
+                .HasOne(n => n.GiangVien)
+                .WithMany()
+                .HasForeignKey(n => n.MaGV)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
