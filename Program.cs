@@ -1,54 +1,58 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TeacherScheduleAPI.Data;
-using TeacherScheduleAPI.Services;  // ⬅️ THÊM DÒNG NÀY
+using TeacherScheduleAPI.Services;
 using Npgsql;
-using Npgsql.EntityFrameworkCore.PostgreSQL;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. CẤU HÌNH DATABASE THÔNG MINH ---
+// ======================
+// 1) CẤU HÌNH DATABASE
+// ======================
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
 if (!string.IsNullOrEmpty(databaseUrl))
 {
-    Console.WriteLine("--> Đang chạy trên Cloud: Sử dụng PostgreSQL");
+    // → Chạy trên Render (PostgreSQL)
+    Console.WriteLine("--> Running on Render: Using PostgreSQL");
 
-    var databaseUri = new Uri(databaseUrl);
-    var userInfo = databaseUri.UserInfo.Split(':');
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
 
-    var builderDb = new NpgsqlConnectionStringBuilder
+    var cs = new NpgsqlConnectionStringBuilder
     {
-        Host = databaseUri.Host,
-        Port = databaseUri.Port,
+        Host = uri.Host,
+        Port = uri.Port,
         Username = userInfo[0],
         Password = userInfo[1],
-        Database = databaseUri.LocalPath.TrimStart('/'),
+        Database = uri.LocalPath.TrimStart('/'),
         SslMode = SslMode.Require,
         TrustServerCertificate = true
-    };
+    }.ToString();
 
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(builderDb.ToString()));
+        options.UseNpgsql(cs));
 }
 else
 {
-    Console.WriteLine("--> Đang chạy Local: Sử dụng SQL Server");
+    // → Chạy Local (SQL Server)
+    Console.WriteLine("--> Running Local: Using SQL Server");
 
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                           ?? "Server=(localdb)\\mssqllocaldb;Database=ScheduleDB;Trusted_Connection=True;MultipleActiveResultSets=true";
+        ?? "Server=(localdb)\\mssqllocaldb;Database=ScheduleDB;Trusted_Connection=True;TrustServerCertificate=True";
 
-    // Thay thế đoạn UseSqlServer bằng đoạn này
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+        options.UseSqlServer(connectionString));
 }
 
-// --- 2. CẤU HÌNH JWT AUTHENTICATION ---
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "YourSuperSecretKeyMinimum32Characters!!";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "TeacherScheduleAPI";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "TeacherScheduleAPIUsers";
+// ======================
+// 2) JWT AUTH
+// ======================
+var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -59,92 +63,60 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
 
 builder.Services.AddAuthorization();
 
-// --- 3. CẤU HÌNH CORS ---
+// ======================
+// 3) CORS
+// ======================
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-    {
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+              .AllowAnyMethod());
 });
 
-// --- 4. CÁC DỊCH VỤ CƠ BẢN ---
+// ======================
+// 4) Controllers + Swagger
+// ======================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    // Cấu hình Swagger để hỗ trợ JWT
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
-        Name = "Authorization",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
+builder.Services.AddSwaggerGen();
 
-    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-    {
-        {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-            {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
-
-// --- 5. ĐĂNG KÝ CUSTOM SERVICES (DI) ---  ⬅️ THÊM PHẦN NÀY
+// ======================
+// 5) Custom Services
+// ======================
 builder.Services.AddScoped<IExportService, ExportService>();
 
 var app = builder.Build();
 
-// --- 6. MIDDLEWARE ---
+// ======================
+// 6) Middleware
+// ======================
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
-
 app.UseCors("AllowAll");
 
-// *** QUAN TRỌNG: Thứ tự phải đúng ***
-app.UseAuthentication(); // Phải đặt trước UseAuthorization
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// --- 7. TỰ ĐỘNG MIGRATION ---
+// ======================
+// 7) Auto-Migrate
+// ======================
 using (var scope = app.Services.CreateScope())
 {
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<AppDbContext>();
-        // Lệnh này tương đương với 'Update-Database'
-        context.Database.Migrate();
-        Console.WriteLine("--> Đã cập nhật Database thành công!");
-        DbInitializer.Initialize(context);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("--> Lỗi khi tạo Database: " + ex.Message);
-    }
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
 }
 
 app.Run();
