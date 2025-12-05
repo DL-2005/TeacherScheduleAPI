@@ -16,11 +16,16 @@ namespace TeacherScheduleAPI.Data
         public DbSet<PhanCong> PhanCongs { get; set; }
         public DbSet<TaiKhoan> TaiKhoans { get; set; }
 
-        // ==================== CÁC BẢNG MỚI ====================
+        // ==================== PHASE 1 - NCKH, BỒI DƯỠNG ====================
         public DbSet<NghienCuuKhoaHoc> NghienCuuKhoaHocs { get; set; }
         public DbSet<BoiDuong> BoiDuongs { get; set; }
         public DbSet<NhiemVuKhac> NhiemVuKhacs { get; set; }
         public DbSet<DinhMuc> DinhMucs { get; set; }
+
+        // ==================== PHASE 4 - VĂN BẢN & FILE ====================
+        public DbSet<LichCongTac> LichCongTacs { get; set; }
+        public DbSet<VanBan> VanBans { get; set; }
+        public DbSet<MinhChung> MinhChungs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -64,6 +69,33 @@ namespace TeacherScheduleAPI.Data
                 .HasOne(n => n.GiangVien)
                 .WithMany()
                 .HasForeignKey(n => n.MaGV)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ==================== CẤU HÌNH LichCongTac ====================
+            modelBuilder.Entity<LichCongTac>()
+                .HasOne(l => l.GiangVien)
+                .WithMany()
+                .HasForeignKey(l => l.MaGV)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<LichCongTac>()
+                .HasOne(l => l.Khoa)
+                .WithMany()
+                .HasForeignKey(l => l.MaKhoa)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ==================== CẤU HÌNH VanBan ====================
+            modelBuilder.Entity<VanBan>()
+                .HasOne(v => v.Khoa)
+                .WithMany()
+                .HasForeignKey(v => v.MaKhoa)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ==================== CẤU HÌNH MinhChung ====================
+            modelBuilder.Entity<MinhChung>()
+                .HasOne(m => m.GiangVien)
+                .WithMany()
+                .HasForeignKey(m => m.MaGV)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }

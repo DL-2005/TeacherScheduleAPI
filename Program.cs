@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TeacherScheduleAPI.Data;
+using TeacherScheduleAPI.Services;  // ⬅️ THÊM DÒNG NÀY
 using Npgsql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -107,9 +108,12 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// --- 5. ĐĂNG KÝ CUSTOM SERVICES (DI) ---  ⬅️ THÊM PHẦN NÀY
+builder.Services.AddScoped<IExportService, ExportService>();
+
 var app = builder.Build();
 
-// --- 5. MIDDLEWARE ---
+// --- 6. MIDDLEWARE ---
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -123,7 +127,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// --- 6. TỰ ĐỘNG MIGRATION ---
+// --- 7. TỰ ĐỘNG MIGRATION ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
