@@ -9,22 +9,26 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // ======================
-// 1) CẤU HÌNH DATABASE
+// 1) DATABASE CONFIG
 // ======================
+
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
 if (!string.IsNullOrEmpty(databaseUrl))
 {
-    // → Chạy trên Render (PostgreSQL)
+    // → Running on Render
     Console.WriteLine("--> Running on Render: Using PostgreSQL");
 
     var uri = new Uri(databaseUrl);
-    var userInfo = uri.UserInfo.Split(':');
+    var userInfo = uri.UserInfo.Split(':', 2);
 
-    var cs = new NpgsqlConnectionStringBuilder
+    // Fix lỗi Port = -1 (Render không gửi port trong URL)
+    int port = uri.Port == -1 ? 5432 : uri.Port;
+
+    var connStr = new NpgsqlConnectionStringBuilder
     {
         Host = uri.Host,
-        Port = uri.Port,
+        Port = port,
         Username = userInfo[0],
         Password = userInfo[1],
         Database = uri.LocalPath.TrimStart('/'),
@@ -33,11 +37,11 @@ if (!string.IsNullOrEmpty(databaseUrl))
     }.ToString();
 
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(cs));
+        options.UseNpgsql(connStr));
 }
 else
 {
-    // → Chạy Local (SQL Server)
+    // → Running Local
     Console.WriteLine("--> Running Local: Using SQL Server");
 
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -46,6 +50,7 @@ else
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseSqlServer(connectionString));
 }
+
 
 // ======================
 // 2) JWT AUTH
@@ -71,6 +76,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+
 // ======================
 // 3) CORS
 // ======================
@@ -82,27 +88,32 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod());
 });
 
+
 // ======================
-// 4) Controllers + Swagger
+// 4) CONTROLLERS + SWAGGER
 // ======================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+
 // ======================
-// 5) Custom Services
+// 5) CUSTOM SERVICES
 // ======================
 builder.Services.AddScoped<IExportService, ExportService>();
 
+
 var app = builder.Build();
 
+
 // ======================
-// 6) Middleware
+// 6) MIDDLEWARE PIPELINE
 // ======================
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+
 app.UseCors("AllowAll");
 
 app.UseAuthentication();
@@ -110,13 +121,25 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+
 // ======================
-// 7) Auto-Migrate
+// 7) AUTO MIGRATION
 // ======================
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+
+    try
+    {
+        Console.WriteLine("--> Running database migration...");
+        db.Database.Migrate();
+        Console.WriteLine("--> Migration complete!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("❌ Migration error: " + ex.Message);
+    }
 }
+
 
 app.Run();
