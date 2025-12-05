@@ -2,6 +2,7 @@
 using TeacherScheduleAPI.Data;
 using TeacherScheduleAPI.Services;  // ⬅️ THÊM DÒNG NÀY
 using Npgsql;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -39,8 +40,9 @@ else
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                            ?? "Server=(localdb)\\mssqllocaldb;Database=ScheduleDB;Trusted_Connection=True;MultipleActiveResultSets=true";
 
+    // Thay thế đoạn UseSqlServer bằng đoạn này
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(connectionString));
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 }
 
 // --- 2. CẤU HÌNH JWT AUTHENTICATION ---
