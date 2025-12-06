@@ -143,6 +143,7 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("❌ Migration error: " + ex.Message);
     }
 }
-
+//trigger deploy
+//help
 
 app.Run();
