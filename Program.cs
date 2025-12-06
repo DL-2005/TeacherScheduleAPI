@@ -42,13 +42,16 @@ if (!string.IsNullOrEmpty(databaseUrl))
 else
 {
     // → Running Local
-    Console.WriteLine("--> Running Local: Using SQL Server");
+    Console.WriteLine("--> Running Local: Using PostgreSQL (Local Connection String)");
 
+    // Dùng chuỗi kết nối PostgreSQL cục bộ. 
+    // Bạn cần cài đặt PostgreSQL server cục bộ và cấu hình chuỗi này.
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Server=(localdb)\\mssqllocaldb;Database=ScheduleDB;Trusted_Connection=True;TrustServerCertificate=True";
+        ?? "Host=localhost;Database=schedule_local;Username=postgres;Password=admin";
 
+    // BẮT BUỘC: Chuyển sang UseNpgsql để biên dịch thành công
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(connectionString));
+        options.UseNpgsql(connectionString));
 }
 
 
